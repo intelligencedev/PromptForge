@@ -1,0 +1,720 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Prompts for Image Generation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .prompt-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 250px);
+            gap: 1rem;
+            justify-content: start;
+            width: 100%;
+        }
+        
+        .prompt-card .edit-buttons {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .prompt-card:hover .edit-buttons {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .copy-message {
+            position: fixed;
+            top: 200px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            opacity: 0;
+            transition: top 0.5s ease, opacity 0.3s ease;
+        }
+        
+        .copy-message.show {
+            top: 20px;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="dark bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+    <!-- Dark Mode Toggle -->
+    <div class="fixed top-5 right-5 z-50">
+        <button id="dark-mode-toggle" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-200">
+            Light Mode
+        </button>
+    </div>
+
+    <!-- Sticky Header -->
+    <div class="sticky top-0 z-40 bg-gray-50 dark:bg-gray-900 border-b-2 border-primary-500 shadow-sm">
+        <div class="w-full px-6 py-4">
+            <h1 class="text-3xl md:text-4xl font-bold text-center text-primary-600 dark:text-primary-400 mb-6">
+                🎨 Comprehensive Prompts for Image Generation
+            </h1>
+            
+            <!-- Controls Bar -->
+            <div class="flex flex-wrap items-center gap-3 mb-4">
+                <!-- Pages Bar -->
+                <div id="pages-bar" class="flex flex-wrap gap-3">
+                    <button class="active px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all">Main Page</button>
+                    <button class="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all">CAMERA</button>
+                    <button class="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all">MATERIALS</button>
+                </div>
+                
+                <!-- Action Buttons -->
+                <button id="add-page-btn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors">
+                    Add Page
+                </button>
+                <button id="save-page-btn" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md transition-colors">
+                    Save Page
+                </button>
+                <button id="add-category-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors">
+                    Add Category
+                </button>
+                
+                <!-- Search -->
+                <input type="text" id="search" placeholder="Search prompts..." 
+                    class="flex-1 max-w-xs px-4 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all">
+            </div>
+        </div>
+    </div>
+
+    <!-- Pages Container -->
+    <div id="pages-container" class="px-6 py-6 max-w-full"></div>
+
+    <!-- Copy Message -->
+    <div id="copy-message" class="copy-message bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg">
+        Copied complete prompt to clipboard!
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl p-6">
+            <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Edit Prompt</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <strong>Tip:</strong> First line = Prompt Tag | Lines below = Prompt Description
+            </p>
+            <textarea id="edit-text" 
+                class="w-full h-48 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"></textarea>
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="cancel-edit" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button id="save-edit" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Category Modal -->
+    <div id="category-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6">
+            <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Add New Category</h3>
+            <input type="text" id="category-name" placeholder="Category Name"
+                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none">
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="cancel-category" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button id="save-category" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize data structure
+        let prompts = {
+            pages: {}
+        };
+
+        let currentPage = null;
+        let currentEditCard = null;
+        let currentEditCategory = null;
+        let currentEditPrompt = null;
+
+        const categoryTitles = {
+            angles: "HISTORICAL ART MOVEMENTS",
+            shots: "TRADITIONAL MEDIA",
+            composition: "ANIMATION & COMICS",
+            movement: "3D / DIGITAL RENDERING",
+            lens: "AESTHETIC GENRES",
+            special: "ADD MORE"
+        };
+
+        // DOM elements
+        const copyMessage = document.getElementById('copy-message');
+        const editModal = document.getElementById('edit-modal');
+        const editText = document.getElementById('edit-text');
+        const saveEdit = document.getElementById('save-edit');
+        const cancelEdit = document.getElementById('cancel-edit');
+        const searchInput = document.getElementById('search');
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+        const categoryModal = document.getElementById('category-modal');
+        const categoryNameInput = document.getElementById('category-name');
+        const saveCategoryBtn = document.getElementById('save-category');
+        const cancelCategoryBtn = document.getElementById('cancel-category');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPromptsFromJSON();
+        });
+
+        // Discover all JSON page files via backend API
+        async function discoverJsonFiles() {
+            try {
+                const response = await fetch('/api/pages');
+                if (!response.ok) throw new Error('Failed to fetch page list');
+                const files = await response.json();
+                return files;
+            } catch (err) {
+                console.error('Error discovering JSON files:', err);
+                return [];
+            }
+        }
+
+        async function fetchJson(fileName) {
+            try {
+                const res = await fetch(`/api/pages/${fileName}`);
+                if (!res.ok) throw new Error(`Failed to fetch ${fileName}`);
+                return await res.json();
+            } catch (err) {
+                console.warn('Skipping JSON file due to error:', fileName, err);
+                return null;
+            }
+        }
+
+        function sortPagesObject(pagesObj) {
+            const sorted = {};
+            Object.keys(pagesObj)
+                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+                .forEach(key => { sorted[key] = pagesObj[key]; });
+            return sorted;
+        }
+
+        // Save page to backend
+        async function savePageToBackend(pageName, content) {
+            try {
+                const filename = `${pageName}.json`;
+                const response = await fetch('/api/pages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename, content })
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to save');
+                }
+                const result = await response.json();
+                return result;
+            } catch (err) {
+                console.error('Error saving page:', err);
+                throw err;
+            }
+        }
+
+        // Load prompts from every JSON file in the directory
+        async function loadPromptsFromJSON() {
+            try {
+                const files = await discoverJsonFiles();
+                const aggregated = {};
+
+                // Ensure predictable ordering across files
+                const orderedFiles = files.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+                for (const file of orderedFiles) {
+                    const data = await fetchJson(file);
+                    if (!data) continue;
+
+                    // Each file represents a single page, filename (without .json) is the page name
+                    const pageName = file.replace(/\.json$/i, '');
+                    aggregated[pageName] = data;
+                }
+
+                if (!Object.keys(aggregated).length) {
+                    throw new Error('No JSON pages loaded');
+                }
+
+                prompts.pages = sortPagesObject(aggregated);
+            } catch (e) {
+                console.log('Could not load JSON files, falling back to HTML content...', e);
+                prompts = parseHTMLPrompts();
+            }
+            renderPages();
+            setupEventListeners();
+        }
+// This function reads the prompts already in the HTML
+function parseHTMLPrompts() {
+    const result = { pages: {} };
+    const pagesContainer = document.getElementById('pages-container');
+
+    if (!pagesContainer) return initialData; // fallback if container missing
+
+    const categories = pagesContainer.querySelectorAll('.category');
+    const currentPageName = document.querySelector('#pages-bar button.active')?.textContent || 'Main Page';
+    result.pages[currentPageName] = {};
+
+    categories.forEach(category => {
+        const title = category.querySelector('.category-title')?.textContent || 'Untitled';
+        result.pages[currentPageName][title] = [];
+
+        const cards = category.querySelectorAll('.prompt-card');
+        cards.forEach(card => {
+            const tag = card.querySelector('.prompt-tag')?.textContent || 'New Prompt';
+            const description = card.querySelector('.prompt-description')?.textContent || '';
+            result.pages[currentPageName][title].push({ tag, description });
+        });
+    });
+
+    return result;
+}
+
+
+        function renderPages() {
+            const pagesBar = document.getElementById("pages-bar");
+            pagesBar.innerHTML = "";
+            const orderedPageNames = Object.keys(prompts.pages).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+            
+            orderedPageNames.forEach(pageName => {
+                const btn = document.createElement("button");
+                btn.textContent = pageName;
+                btn.className = "px-5 py-2.5 font-medium rounded-lg shadow-md hover:shadow-lg transition-all";
+                
+                if (pageName === currentPage) {
+                    btn.classList.add("active", "bg-primary-600", "hover:bg-primary-700", "text-white");
+                } else {
+                    btn.classList.add("bg-gray-200", "hover:bg-gray-300", "dark:bg-gray-700", "dark:hover:bg-gray-600", "text-gray-800", "dark:text-white");
+                }
+                
+                btn.addEventListener("click", () => showPage(pageName));
+                pagesBar.appendChild(btn);
+            });
+
+            if (!currentPage || !prompts.pages[currentPage]) {
+                currentPage = orderedPageNames[0];
+            }
+            showPage(currentPage);
+        }
+
+        function showPage(pageName) {
+            currentPage = pageName;
+            const container = document.getElementById("pages-container");
+            container.innerHTML = "";
+
+            // Update active button
+            document.querySelectorAll('#pages-bar button').forEach(btn => {
+                if (btn.textContent === pageName) {
+                    btn.classList.add('active', 'bg-primary-600', 'hover:bg-primary-700', 'text-white');
+                    btn.classList.remove('bg-gray-200', 'hover:bg-gray-300', 'dark:bg-gray-700', 'dark:hover:bg-gray-600', 'text-gray-800', 'dark:text-white');
+                } else {
+                    btn.classList.remove('active', 'bg-primary-600', 'hover:bg-primary-700', 'text-white');
+                    btn.classList.add('bg-gray-200', 'hover:bg-gray-300', 'dark:bg-gray-700', 'dark:hover:bg-gray-600', 'text-gray-800', 'dark:text-white');
+                }
+            });
+
+            const pageData = prompts.pages[pageName];
+            Object.keys(pageData).forEach(categoryName => {
+                const section = document.createElement("div");
+                section.className = "mb-8";
+                section.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-white">${categoryName}</h2>
+                    <div class="flex gap-3 mb-4">
+                        <button class="add-prompt-btn px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors" data-category="${categoryName}">Add Prompt</button>
+                        <button class="delete-category-btn px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" data-category="${categoryName}">Delete Category</button>
+                    </div>
+                    <div class="prompt-grid" id="${pageName}-${categoryName}-grid"></div>
+                `;
+                container.appendChild(section);
+            });
+            renderPrompts();
+        }
+
+        function renderPrompts() {
+            const page = prompts.pages[currentPage];
+            if (!page) return;
+
+            for (const [category, promptList] of Object.entries(page)) {
+                const grid = document.getElementById(`${currentPage}-${category}-grid`);
+                if (!grid) continue;
+                grid.innerHTML = "";
+                promptList.forEach(prompt => {
+                    grid.appendChild(createPromptCard(prompt, category));
+                });
+            }
+        }
+
+function createPromptCard(prompt, category) {
+    const card = document.createElement('div');
+    card.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border border-gray-200 dark:border-gray-700';
+
+    // Image container with overlay
+    const imageContainer = document.createElement('div');
+    imageContainer.className = 'relative';
+    
+    const img = document.createElement('img');
+    img.className = 'w-full h-auto object-contain transition-all';
+    const baseName = prompt.tag.replace(/ /g, '_');
+    img.src = `images/${baseName}.png`;
+    img.onerror = () => {
+        img.src = `images/${baseName}.jpg`;
+        img.onerror = () => { img.style.display = 'none'; };
+    };
+    imageContainer.appendChild(img);
+
+    // Description overlay (hidden by default)
+    const descOverlay = document.createElement('div');
+    descOverlay.className = 'hidden absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4';
+    const descText = document.createElement('p');
+    descText.className = 'text-white text-sm text-center';
+    descText.textContent = prompt.description;
+    descOverlay.appendChild(descText);
+    imageContainer.appendChild(descOverlay);
+    
+    card.appendChild(imageContainer);
+
+    // Tag
+    const tag = document.createElement('span');
+    tag.className = 'block px-4 py-3 font-bold text-lg text-center text-gray-900 dark:text-white';
+    tag.textContent = prompt.tag;
+    card.appendChild(tag);
+
+    // Edit buttons
+    const editButtons = document.createElement('div');
+    editButtons.className = 'flex gap-2 p-4 pt-2';
+
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.className = 'px-3 py-1.5 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors';
+    editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEditModal(prompt, category);
+    });
+    editButtons.appendChild(editBtn);
+
+    const delBtn = document.createElement('button');
+    delBtn.textContent = 'Delete';
+    delBtn.className = 'px-3 py-1.5 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors';
+    delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        deletePrompt(prompt, category);
+    });
+    editButtons.appendChild(delBtn);
+
+    // Move left button
+    const moveLeftBtn = document.createElement('button');
+    moveLeftBtn.textContent = '←';
+    moveLeftBtn.title = "Move Left";
+    moveLeftBtn.className = 'px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white text-sm rounded hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors';
+    moveLeftBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        movePrompt(prompt, category, -1);
+    });
+    editButtons.appendChild(moveLeftBtn);
+
+    // Move right button
+    const moveRightBtn = document.createElement('button');
+    moveRightBtn.textContent = '→';
+    moveRightBtn.title = "Move Right";
+    moveRightBtn.className = 'px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white text-sm rounded hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors';
+    moveRightBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        movePrompt(prompt, category, 1);
+    });
+    editButtons.appendChild(moveRightBtn);
+
+    card.appendChild(editButtons);
+
+    // Show/hide description overlay on hover
+    imageContainer.addEventListener('mouseenter', () => {
+        descOverlay.classList.remove('hidden');
+        descOverlay.classList.add('flex');
+    });
+    imageContainer.addEventListener('mouseleave', () => {
+        descOverlay.classList.add('hidden');
+        descOverlay.classList.remove('flex');
+    });
+
+    // Click to copy
+    card.addEventListener('click', () => {
+        copyPrompt(prompt);
+    });
+
+    return card;
+}
+
+        function copyPrompt(prompt) {
+            const fullPrompt = `${prompt.tag}: ${prompt.description}`;
+            navigator.clipboard.writeText(fullPrompt).then(() => {
+                copyMessage.classList.add('show');
+                setTimeout(() => {
+                    copyMessage.classList.remove('show');
+                }, 1500);
+            });
+        }
+
+        function openEditModal(prompt, category) {
+            currentEditPrompt = prompt;
+            currentEditCategory = category;
+            editText.value = `${prompt.tag}\n${prompt.description}`;
+            editModal.classList.remove('hidden');
+        }
+
+        function saveEditedPrompt() {
+            const lines = editText.value.split('\n');
+            const tag = lines[0];
+            const description = lines.slice(1).join('\n');
+
+            currentEditPrompt.tag = tag;
+            currentEditPrompt.description = description;
+
+            editModal.classList.add('hidden');
+            renderPrompts();
+        }
+
+        function deletePrompt(prompt, category) {
+            const list = prompts.pages[currentPage][category];
+            const index = list.indexOf(prompt);
+            if (index !== -1) {
+                if (confirm('Delete this prompt?')) {
+                    list.splice(index, 1);
+                    renderPrompts();
+                }
+            }
+        }
+
+        function deleteCategory(categoryName) {
+            if (confirm(`Delete category "${categoryName}" and all its prompts?`)) {
+                delete prompts.pages[currentPage][categoryName];
+                showPage(currentPage);
+            }
+        }
+
+        function setupEventListeners() {
+            saveEdit.addEventListener('click', saveEditedPrompt);
+            cancelEdit.addEventListener('click', () => {
+                editModal.classList.add('hidden');
+            });
+
+            // Add page
+            document.getElementById("add-page-btn").addEventListener("click", async () => {
+                const name = prompt("Page name:");
+                if (!name || !name.trim()) return;
+                if (prompts.pages[name]) {
+                    alert("Page already exists!");
+                    return;
+                }
+                prompts.pages[name] = {};
+                prompts.pages = sortPagesObject(prompts.pages);
+                
+                try {
+                    await savePageToBackend(name, prompts.pages[name]);
+                    alert(`Page "${name}" created successfully!`);
+                    renderPages();
+                } catch (err) {
+                    alert(`Error creating page: ${err.message}`);
+                }
+            });
+
+            // Save current page to its JSON file
+            document.getElementById("save-page-btn").addEventListener("click", async () => {
+                if (!currentPage || !prompts.pages[currentPage]) {
+                    alert('No page selected to save.');
+                    return;
+                }
+                
+                try {
+                    await savePageToBackend(currentPage, prompts.pages[currentPage]);
+                    alert(`Page "${currentPage}" saved successfully!`);
+                } catch (err) {
+                    alert(`Error saving page: ${err.message}`);
+                }
+            });
+
+            // Add category
+            document.getElementById("add-category-btn").addEventListener("click", () => {
+                categoryNameInput.value = "";
+                categoryModal.classList.remove('hidden');
+            });
+
+            saveCategoryBtn.addEventListener('click', () => {
+                const name = categoryNameInput.value.trim();
+                if (!name) return;
+                if (prompts.pages[currentPage][name]) {
+                    alert("Category already exists!");
+                    return;
+                }
+                prompts.pages[currentPage][name] = [];
+                categoryModal.classList.add('hidden');
+                showPage(currentPage);
+            });
+
+            cancelCategoryBtn.addEventListener('click', () => {
+                categoryModal.classList.add('hidden');
+            });
+
+            // Delegate events for dynamically created buttons
+            document.addEventListener("click", e => {
+                if (e.target.classList.contains("add-prompt-btn")) {
+                    const category = e.target.dataset.category;
+                    prompts.pages[currentPage][category].push({
+                        tag: "New Prompt",
+                        description: "Description..."
+                    });
+                    renderPrompts();
+                }
+                
+                if (e.target.classList.contains("delete-category-btn")) {
+                    const category = e.target.dataset.category;
+                    deleteCategory(category);
+                }
+            });
+
+            // Search - searches across all pages
+            searchInput.addEventListener('input', () => {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                
+                if (!searchTerm) {
+                    // If search is empty, show current page normally
+                    showPage(currentPage);
+                    return;
+                }
+                
+                // Search across all pages and collect matches
+                const matches = {};
+                let totalMatches = 0;
+                
+                Object.entries(prompts.pages).forEach(([pageName, pageData]) => {
+                    Object.entries(pageData).forEach(([categoryName, promptList]) => {
+                        const matchingPrompts = promptList.filter(prompt => 
+                            prompt.tag.toLowerCase().includes(searchTerm) ||
+                            prompt.description.toLowerCase().includes(searchTerm)
+                        );
+                        
+                        if (matchingPrompts.length > 0) {
+                            if (!matches[pageName]) matches[pageName] = {};
+                            matches[pageName][categoryName] = matchingPrompts;
+                            totalMatches += matchingPrompts.length;
+                        }
+                    });
+                });
+                
+                // Display search results across all pages
+                const container = document.getElementById("pages-container");
+                container.innerHTML = "";
+                
+                if (totalMatches === 0) {
+                    container.innerHTML = `<div class="text-center py-16 text-gray-600 dark:text-gray-400">
+                        <h3 class="text-xl font-semibold mb-2">No results found for "${searchTerm}"</h3>
+                        <p>Try a different search term</p>
+                    </div>`;
+                    return;
+                }
+                
+                // Show results grouped by page and category
+                Object.entries(matches).forEach(([pageName, categories]) => {
+                    const pageSection = document.createElement('div');
+                    pageSection.className = 'mb-10';
+                    pageSection.innerHTML = `<h2 class="text-xl font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 p-3 rounded-lg mb-6 border-l-4 border-blue-500">
+                        📄 ${pageName}
+                    </h2>`;
+                    
+                    Object.entries(categories).forEach(([categoryName, promptList]) => {
+                        const section = document.createElement("div");
+                        section.className = "mb-8";
+                        section.innerHTML = `
+                            <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-white">${categoryName}</h2>
+                            <div class="prompt-grid" id="search-${pageName}-${categoryName}-grid"></div>
+                        `;
+                        pageSection.appendChild(section);
+                        
+                        const grid = section.querySelector('.prompt-grid');
+                        promptList.forEach(prompt => {
+                            grid.appendChild(createPromptCard(prompt, categoryName));
+                        });
+                    });
+                    
+                    container.appendChild(pageSection);
+                });
+            });
+
+            // Dark mode
+            darkModeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                darkModeToggle.textContent = document.documentElement.classList.contains('dark') ? '☀️ Light' : '🌙 Dark';
+            });
+        }
+    </script>
+    <!-- ... all your existing HTML content ... -->
+
+<!-- Export JSON Button -->
+<div class="text-center my-8">
+    <button id="export-json-btn" class="px-6 py-3 text-base bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-md hover:shadow-lg">Export JSON</button>
+</div>
+
+<script>
+document.getElementById('export-json-btn').addEventListener('click', () => {
+    // Get only the current active page data
+    if (!currentPage || !prompts.pages[currentPage]) {
+        alert('No active page to export');
+        return;
+    }
+    
+    const currentPageData = prompts.pages[currentPage];
+    const jsonData = JSON.stringify(currentPageData, null, 2);
+
+    // Trigger download with page name
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentPage}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+});
+</script>
+
+<script>
+function movePrompt(prompt, category, direction) {
+    const list = prompts.pages[currentPage][category];
+    const index = list.indexOf(prompt);
+    if (index === -1) return;
+
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= list.length) return;
+
+    // Swap elements
+    [list[index], list[newIndex]] = [list[newIndex], list[index]];
+
+    renderPrompts();
+}
+</script>
+
+
+</body></html>
