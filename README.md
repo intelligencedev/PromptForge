@@ -6,6 +6,20 @@ A visual prompt management system for AI image generation. Organize, browse, and
 ![Python](https://img.shields.io/badge/Python-3.8+-blue)
 ![Flask](https://img.shields.io/badge/Flask-3.0-green)
 
+## 📸 Screenshots
+
+### Style Prompts
+![Styles View](assets/styles_view.png)
+*Browse through artistic styles with visual previews and descriptions*
+
+### Camera Settings Collection
+![Camera View](assets/camera_view.png)
+*Specialized camera angle and shot prompts for precise composition control*
+
+### Materials Library
+![Materials View](assets/materials_view.png)
+*Collection of material and texture prompts for realistic rendering*
+
 ## ✨ Features
 
 - **Visual Catalog** - Browse hundreds of artistic styles with image previews and detailed descriptions
