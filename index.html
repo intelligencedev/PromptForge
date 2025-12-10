@@ -1,4 +1,6 @@
-<html lang="en" class="dark"><head>
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PromptForge</title>
@@ -68,7 +70,7 @@
             ☀️ Light
         </button>
     </div>
-
+    
     <!-- Sticky Header -->
     <div class="sticky top-0 z-40 bg-gray-50 dark:bg-gray-900 border-b-2 border-primary-500 shadow-sm">
         <div class="w-full px-6 py-4">
@@ -102,15 +104,20 @@
             </div>
         </div>
     </div>
-
+    
     <!-- Pages Container -->
     <div id="pages-container" class="px-6 py-6 max-w-full"></div>
-
+    
     <!-- Copy Message -->
     <div id="copy-message" class="copy-message bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg">
         Copied complete prompt to clipboard!
     </div>
-
+    
+    <!-- Warning Message -->
+    <div id="warning-message" class="copy-message bg-yellow-500 text-black px-6 py-3 rounded-lg shadow-lg font-semibold">
+        Please edit the card name before uploading an image!
+    </div>
+    
     <!-- Edit Modal -->
     <div id="edit-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl p-6">
@@ -130,7 +137,7 @@
             </div>
         </div>
     </div>
-
+    
     <!-- Add Category Modal -->
     <div id="category-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md p-6">
@@ -147,18 +154,22 @@
             </div>
         </div>
     </div>
+    
+    <!-- Export JSON Button -->
+    <div class="text-center my-8">
+        <button id="export-json-btn" class="px-6 py-3 text-base bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-md hover:shadow-lg">Export JSON</button>
+    </div>
 
     <script>
         // Initialize data structure
         let prompts = {
             pages: {}
         };
-
         let currentPage = null;
         let currentEditCard = null;
         let currentEditCategory = null;
         let currentEditPrompt = null;
-
+        
         const categoryTitles = {
             angles: "HISTORICAL ART MOVEMENTS",
             shots: "TRADITIONAL MEDIA",
@@ -167,9 +178,10 @@
             lens: "AESTHETIC GENRES",
             special: "ADD MORE"
         };
-
+        
         // DOM elements
         const copyMessage = document.getElementById('copy-message');
+        const warningMessage = document.getElementById('warning-message');
         const editModal = document.getElementById('edit-modal');
         const editText = document.getElementById('edit-text');
         const saveEdit = document.getElementById('save-edit');
@@ -180,12 +192,19 @@
         const categoryNameInput = document.getElementById('category-name');
         const saveCategoryBtn = document.getElementById('save-category');
         const cancelCategoryBtn = document.getElementById('cancel-category');
-
+        
+        // Helper function to show floating warning
+        function showWarning(msg) {
+            warningMessage.textContent = msg;
+            warningMessage.classList.add('show');
+            setTimeout(() => warningMessage.classList.remove('show'), 2500);
+        }
+        
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadPromptsFromJSON();
         });
-
+        
         // Discover all JSON page files via backend API
         async function discoverJsonFiles() {
             try {
@@ -198,7 +217,7 @@
                 return [];
             }
         }
-
+        
         async function fetchJson(fileName) {
             try {
                 const res = await fetch(`/api/pages/${fileName}`);
@@ -209,7 +228,7 @@
                 return null;
             }
         }
-
+        
         function sortPagesObject(pagesObj) {
             const sorted = {};
             Object.keys(pagesObj)
@@ -217,7 +236,7 @@
                 .forEach(key => { sorted[key] = pagesObj[key]; });
             return sorted;
         }
-
+        
         // Save page to backend
         async function savePageToBackend(pageName, content) {
             try {
@@ -238,64 +257,60 @@
                 throw err;
             }
         }
-
+        
         // Load prompts from every JSON file in the directory
         async function loadPromptsFromJSON() {
             try {
                 const files = await discoverJsonFiles();
                 const aggregated = {};
-
                 // Ensure predictable ordering across files
                 const orderedFiles = files.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-
                 for (const file of orderedFiles) {
                     const data = await fetchJson(file);
                     if (!data) continue;
-
                     // Each file represents a single page, filename (without .json) is the page name
                     const pageName = file.replace(/\.json$/i, '');
                     aggregated[pageName] = data;
                 }
-
                 if (!Object.keys(aggregated).length) {
                     throw new Error('No JSON pages loaded');
                 }
-
                 prompts.pages = sortPagesObject(aggregated);
             } catch (e) {
                 console.log('Could not load JSON files, falling back to HTML content...', e);
                 prompts = parseHTMLPrompts();
             }
+            
+            // Add Metadata Viewer page
+            if (!prompts.pages["Metadata Viewer"]) {
+                prompts.pages["Metadata Viewer"] = {};
+            }
+            
             renderPages();
             setupEventListeners();
         }
-// This function reads the prompts already in the HTML
-function parseHTMLPrompts() {
-    const result = { pages: {} };
-    const pagesContainer = document.getElementById('pages-container');
 
-    if (!pagesContainer) return initialData; // fallback if container missing
-
-    const categories = pagesContainer.querySelectorAll('.category');
-    const currentPageName = document.querySelector('#pages-bar button.active')?.textContent || 'Main Page';
-    result.pages[currentPageName] = {};
-
-    categories.forEach(category => {
-        const title = category.querySelector('.category-title')?.textContent || 'Untitled';
-        result.pages[currentPageName][title] = [];
-
-        const cards = category.querySelectorAll('.prompt-card');
-        cards.forEach(card => {
-            const tag = card.querySelector('.prompt-tag')?.textContent || 'New Prompt';
-            const description = card.querySelector('.prompt-description')?.textContent || '';
-            result.pages[currentPageName][title].push({ tag, description });
-        });
-    });
-
-    return result;
-}
-
-
+        // This function reads the prompts already in the HTML
+        function parseHTMLPrompts() {
+            const result = { pages: {} };
+            const pagesContainer = document.getElementById('pages-container');
+            if (!pagesContainer) return { pages: {} };
+            const categories = pagesContainer.querySelectorAll('.category');
+            const currentPageName = document.querySelector('#pages-bar button.active')?.textContent || 'Main Page';
+            result.pages[currentPageName] = {};
+            categories.forEach(category => {
+                const title = category.querySelector('.category-title')?.textContent || 'Untitled';
+                result.pages[currentPageName][title] = [];
+                const cards = category.querySelectorAll('.prompt-card');
+                cards.forEach(card => {
+                    const tag = card.querySelector('.prompt-tag')?.textContent || 'New Prompt';
+                    const description = card.querySelector('.prompt-description')?.textContent || '';
+                    result.pages[currentPageName][title].push({ tag, description });
+                });
+            });
+            return result;
+        }
+        
         function renderPages() {
             const pagesBar = document.getElementById("pages-bar");
             pagesBar.innerHTML = "";
@@ -315,18 +330,17 @@ function parseHTMLPrompts() {
                 btn.addEventListener("click", () => showPage(pageName));
                 pagesBar.appendChild(btn);
             });
-
             if (!currentPage || !prompts.pages[currentPage]) {
                 currentPage = orderedPageNames[0];
             }
             showPage(currentPage);
         }
-
+        
         function showPage(pageName) {
             currentPage = pageName;
             const container = document.getElementById("pages-container");
             container.innerHTML = "";
-
+            
             // Update active button
             document.querySelectorAll('#pages-bar button').forEach(btn => {
                 if (btn.textContent === pageName) {
@@ -337,7 +351,20 @@ function parseHTMLPrompts() {
                     btn.classList.add('bg-gray-200', 'hover:bg-gray-300', 'dark:bg-gray-700', 'dark:hover:bg-gray-600', 'text-gray-800', 'dark:text-white');
                 }
             });
-
+            
+            // Special handling for Metadata Viewer page
+            if (pageName === "Metadata Viewer") {
+                container.innerHTML = `
+                    <div id="metadata-dropzone" class="border-4 border-dashed border-gray-400 dark:border-gray-600 p-10 text-center mb-6 rounded-lg cursor-pointer hover:border-primary-500 transition-colors">
+                        <p class="text-xl font-semibold mb-2">📁 Drag and drop your images here</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Or click to select files</p>
+                    </div>
+                    <div id="metadata-container" class="grid gap-6"></div>
+                `;
+                setupMetadataDragDrop();
+                return;
+            }
+            
             const pageData = prompts.pages[pageName];
             Object.keys(pageData).forEach(categoryName => {
                 const section = document.createElement("div");
@@ -354,11 +381,134 @@ function parseHTMLPrompts() {
             });
             renderPrompts();
         }
-
+        
+        function setupMetadataDragDrop() {
+            const dropzone = document.getElementById("metadata-dropzone");
+            const container = document.getElementById("metadata-container");
+            
+            dropzone.addEventListener("dragover", e => { 
+                e.preventDefault(); 
+                dropzone.classList.add("border-primary-500"); 
+            });
+            
+            dropzone.addEventListener("dragleave", e => { 
+                dropzone.classList.remove("border-primary-500"); 
+            });
+            
+            dropzone.addEventListener("drop", e => {
+                e.preventDefault();
+                dropzone.classList.remove("border-primary-500");
+                const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+                files.forEach(file => displayMetadata(file));
+            });
+            
+            // Also allow clicking to select files
+            dropzone.addEventListener("click", () => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = "image/*";
+                input.multiple = true;
+                input.onchange = e => {
+                    const files = Array.from(e.target.files);
+                    files.forEach(file => displayMetadata(file));
+                };
+                input.click();
+            });
+            
+            function extractPromptFromMetadataString(metadataString) {
+                // Match "text": "....", "clip" up to 6 times
+                const regex = /"text"\s*:\s*"([\s\S]*?)",\s*"clip"/g;
+                const prompts = [];
+                let match;
+                let count = 0;
+                
+                while ((match = regex.exec(metadataString)) !== null && count < 6) {
+                    if (match[1]) {
+                        prompts.push(match[1]);
+                        count++;
+                    }
+                }
+                
+                return prompts;
+            }
+            
+            function displayMetadata(file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = function() {
+                        // Try to extract PNG metadata
+                        let prompts = [];
+                        try {
+                            const base64Data = event.target.result.split(',')[1];
+                            const binaryString = atob(base64Data);
+                            
+                            // Look for tEXt chunks in PNG
+                            if (file.type === 'image/png') {
+                                const searchStr = 'prompt';
+                                const idx = binaryString.indexOf(searchStr);
+                                if (idx !== -1) {
+                                    const startIdx = idx + searchStr.length + 1;
+                                    let endIdx = binaryString.indexOf('\0', startIdx);
+                                    if (endIdx === -1) endIdx = startIdx + 10000; // reasonable limit
+                                    const metadataChunk = binaryString.substring(startIdx, endIdx);
+                                    prompts = extractPromptFromMetadataString(metadataChunk);
+                                }
+                            }
+                        } catch (e) {
+                            console.log('Could not extract prompt metadata:', e);
+                        }
+                        
+                        let metadata = `FILENAME: ${file.name}
+SIZE: ${(file.size / 1024).toFixed(2)} KB
+WIDTH: ${img.width}px
+HEIGHT: ${img.height}px
+TYPE: ${file.type}`;
+                        
+                        if (prompts.length > 0) {
+                            metadata += `\n\n`;
+                            prompts.forEach((prompt, index) => {
+                                metadata += `PROMPT ${index + 1}:\n${prompt}\n\n`;
+                            });
+                        }
+                        
+                        const card = document.createElement("div");
+                        card.className = "bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md relative";
+                        card.innerHTML = `
+                            <button class="delete-photo-btn absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded transition-colors text-sm font-semibold z-10">
+                                ✕ Delete
+                            </button>
+                            <img src="${img.src}" class="mb-3 max-w-full h-auto rounded" />
+                            <pre class="bg-gray-100 dark:bg-gray-700 p-3 rounded text-sm whitespace-pre-wrap">${metadata}</pre>
+                            <button class="copy-metadata-btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mt-2 transition-colors">Copy Metadata</button>
+                        `;
+                        container.appendChild(card);
+                        
+                        // Delete photo button
+                        card.querySelector(".delete-photo-btn").addEventListener("click", () => {
+                            card.remove();
+                        });
+                        
+                        // Copy metadata button
+                        card.querySelector(".copy-metadata-btn").addEventListener("click", () => {
+                            navigator.clipboard.writeText(metadata);
+                            const btn = card.querySelector(".copy-metadata-btn");
+                            const originalText = btn.textContent;
+                            btn.textContent = "✓ Copied!";
+                            setTimeout(() => {
+                                btn.textContent = originalText;
+                            }, 2000);
+                        });
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
         function renderPrompts() {
             const page = prompts.pages[currentPage];
             if (!page) return;
-
             for (const [category, promptList] of Object.entries(page)) {
                 const grid = document.getElementById(`${currentPage}-${category}-grid`);
                 if (!grid) continue;
@@ -369,105 +519,215 @@ function parseHTMLPrompts() {
             }
         }
 
-function createPromptCard(prompt, category) {
-    const card = document.createElement('div');
-    card.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border border-gray-200 dark:border-gray-700';
-
-    // Image container with overlay
-    const imageContainer = document.createElement('div');
-    imageContainer.className = 'relative';
-    
-    const img = document.createElement('img');
-    img.className = 'w-full h-auto object-contain transition-all';
-    const baseName = prompt.tag.replace(/ /g, '_');
-    img.src = `images/${baseName}.png`;
-    img.onerror = () => {
-        img.src = `images/${baseName}.jpg`;
-        img.onerror = () => { img.style.display = 'none'; };
-    };
-    imageContainer.appendChild(img);
-
-    // Description overlay (hidden by default)
-    const descOverlay = document.createElement('div');
-    descOverlay.className = 'hidden absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4';
-    const descText = document.createElement('p');
-    descText.className = 'text-white text-sm text-center';
-    descText.textContent = prompt.description;
-    descOverlay.appendChild(descText);
-    imageContainer.appendChild(descOverlay);
-    
-    card.appendChild(imageContainer);
-
-    // Tag
-    const tag = document.createElement('span');
-    tag.className = 'block px-4 py-3 font-bold text-lg text-center text-gray-900 dark:text-white';
-    tag.textContent = prompt.tag;
-    card.appendChild(tag);
-
-    // Edit buttons
-    const editButtons = document.createElement('div');
-    editButtons.className = 'flex gap-2 p-4 pt-2';
-
-    const editBtn = document.createElement('button');
-    editBtn.textContent = 'Edit';
-    editBtn.className = 'px-3 py-1.5 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors';
-    editBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openEditModal(prompt, category);
-    });
-    editButtons.appendChild(editBtn);
-
-    const delBtn = document.createElement('button');
-    delBtn.textContent = 'Delete';
-    delBtn.className = 'px-3 py-1.5 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors';
-    delBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        deletePrompt(prompt, category);
-    });
-    editButtons.appendChild(delBtn);
-
-    // Move left button
-    const moveLeftBtn = document.createElement('button');
-    moveLeftBtn.textContent = '←';
-    moveLeftBtn.title = "Move Left";
-    moveLeftBtn.className = 'px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white text-sm rounded hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors';
-    moveLeftBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        movePrompt(prompt, category, -1);
-    });
-    editButtons.appendChild(moveLeftBtn);
-
-    // Move right button
-    const moveRightBtn = document.createElement('button');
-    moveRightBtn.textContent = '→';
-    moveRightBtn.title = "Move Right";
-    moveRightBtn.className = 'px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white text-sm rounded hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors';
-    moveRightBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        movePrompt(prompt, category, 1);
-    });
-    editButtons.appendChild(moveRightBtn);
-
-    card.appendChild(editButtons);
-
-    // Show/hide description overlay on hover
-    imageContainer.addEventListener('mouseenter', () => {
-        descOverlay.classList.remove('hidden');
-        descOverlay.classList.add('flex');
-    });
-    imageContainer.addEventListener('mouseleave', () => {
-        descOverlay.classList.add('hidden');
-        descOverlay.classList.remove('flex');
-    });
-
-    // Click to copy
-    card.addEventListener('click', () => {
-        copyPrompt(prompt);
-    });
-
-    return card;
-}
-
+        function createPromptCard(prompt, category) {
+            const card = document.createElement('div');
+            card.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border border-gray-200 dark:border-gray-700 prompt-card';
+            
+            // Image container with overlay and drag-drop support
+            const imageContainer = document.createElement('div');
+            imageContainer.className = 'relative border-b border-gray-300 dark:border-gray-700';
+            
+            const img = document.createElement('img');
+            img.className = 'w-full h-auto object-contain transition-all';
+            
+            // Show uploaded image if exists, otherwise fallback to default naming
+            if (prompt.image) {
+                img.src = `images/${prompt.image}`;
+                img.onerror = () => {
+                    // If uploaded image fails, try tag-based naming
+                    const baseName = prompt.tag.replace(/ /g, '_');
+                    img.src = `images/${baseName}.png`;
+                    img.onerror = () => {
+                        img.src = `images/${baseName}.jpg`;
+                        img.onerror = () => { 
+                            // Final fallback to default.png
+                            img.src = `images/default.png`;
+                            img.onerror = () => {
+                                // If even default.png fails, show placeholder
+                                img.alt = prompt.tag;
+                                img.style.minHeight = '150px';
+                                img.style.backgroundColor = '#e5e7eb';
+                                img.style.display = 'block';
+                                img.onerror = null; // prevent loop
+                            };
+                        };
+                    };
+                };
+            } else {
+                // For new prompts or prompts without uploaded images
+                const baseName = prompt.tag.replace(/ /g, '_');
+                img.src = `images/${baseName}.png`;
+                img.onerror = () => {
+                    img.src = `images/${baseName}.jpg`;
+                    img.onerror = () => { 
+                        // Fallback to default.png
+                        img.src = `images/default.png`;
+                        img.onerror = () => {
+                            // If default.png doesn't exist, show gray placeholder
+                            img.alt = prompt.tag;
+                            img.style.minHeight = '150px';
+                            img.style.backgroundColor = '#e5e7eb';
+                            img.style.display = 'block';
+                            img.onerror = null; // prevent loop
+                        };
+                    };
+                };
+            }
+            
+            imageContainer.appendChild(img);
+            
+            // Drag-and-drop functionality for uploading new images
+            imageContainer.addEventListener('dragover', e => { 
+                e.preventDefault(); 
+                e.stopPropagation();
+                imageContainer.classList.add('ring-4', 'ring-blue-500');
+            });
+            
+            imageContainer.addEventListener('dragleave', e => { 
+                imageContainer.classList.remove('ring-4', 'ring-blue-500');
+            });
+            
+            imageContainer.addEventListener('drop', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                imageContainer.classList.remove('ring-4', 'ring-blue-500');
+                
+                const file = e.dataTransfer.files[0];
+                if (!file || !file.type.startsWith('image/')) {
+                    showWarning('Please drop a valid image file');
+                    return;
+                }
+                
+                // If prompt tag is "New Prompt", block upload and show warning
+                if (prompt.tag === "New Prompt") {
+                    showWarning('Please edit the card name before uploading an image!');
+                    return;
+                }
+                
+                // Show image preview immediately
+                const reader = new FileReader();
+                reader.onload = (event) => { 
+                    img.src = event.target.result;
+                    img.style.display = 'block';
+                    img.style.backgroundColor = '';
+                    img.style.minHeight = '';
+                };
+                reader.readAsDataURL(file);
+                
+                // Send to backend
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('page', currentPage);
+                formData.append('category', category);
+                formData.append('prompt_tag', prompt.tag);
+                
+                fetch('/api/upload-image', { method: 'POST', body: formData })
+                    .then(res => res.json())
+                    .then(data => { 
+                        if (data.error) {
+                            showWarning(data.error);
+                            return;
+                        }
+                        prompt.image = data.filename; 
+                        console.log('Image saved:', data.filename);
+                        // Show success feedback
+                        const feedback = document.createElement('div');
+                        feedback.className = 'absolute top-2 left-2 bg-green-500 text-white px-3 py-1 rounded text-sm';
+                        feedback.textContent = '✓ Saved';
+                        imageContainer.appendChild(feedback);
+                        setTimeout(() => feedback.remove(), 2000);
+                    })
+                    .catch(err => {
+                        console.error('Upload failed:', err);
+                        showWarning('Failed to upload image. Make sure the backend is running.');
+                    });
+            });
+            
+            // Description overlay (hidden by default)
+            const descOverlay = document.createElement('div');
+            descOverlay.className = 'hidden absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4';
+            const descText = document.createElement('p');
+            descText.className = 'text-white text-sm text-center';
+            descText.textContent = prompt.description;
+            descOverlay.appendChild(descText);
+            imageContainer.appendChild(descOverlay);
+            
+            card.appendChild(imageContainer);
+            
+            // Tag
+            const tag = document.createElement('span');
+            tag.className = 'block px-4 py-3 font-bold text-lg text-center text-gray-900 dark:text-white';
+            tag.textContent = prompt.tag;
+            card.appendChild(tag);
+            
+            // Edit buttons
+            const editButtons = document.createElement('div');
+            editButtons.className = 'flex gap-2 p-4 pt-2 edit-buttons';
+            
+            const editBtn = document.createElement('button');
+            editBtn.textContent = 'Edit';
+            editBtn.className = 'px-3 py-1.5 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors';
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openEditModal(prompt, category);
+            });
+            editButtons.appendChild(editBtn);
+            
+            const delBtn = document.createElement('button');
+            delBtn.textContent = 'Delete';
+            delBtn.className = 'px-3 py-1.5 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors';
+            delBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                deletePrompt(prompt, category);
+            });
+            editButtons.appendChild(delBtn);
+            
+            // Move left button
+            const moveLeftBtn = document.createElement('button');
+            moveLeftBtn.textContent = '←';
+            moveLeftBtn.title = "Move Left";
+            moveLeftBtn.className = 'px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white text-sm rounded hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors';
+            moveLeftBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                movePrompt(prompt, category, -1);
+            });
+            editButtons.appendChild(moveLeftBtn);
+            
+            // Move right button
+            const moveRightBtn = document.createElement('button');
+            moveRightBtn.textContent = '→';
+            moveRightBtn.title = "Move Right";
+            moveRightBtn.className = 'px-3 py-1.5 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-white text-sm rounded hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors';
+            moveRightBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                movePrompt(prompt, category, 1);
+            });
+            editButtons.appendChild(moveRightBtn);
+            
+            card.appendChild(editButtons);
+            
+            // Show/hide description overlay on hover (but not when dragging)
+            imageContainer.addEventListener('mouseenter', () => {
+                descOverlay.classList.remove('hidden');
+                descOverlay.classList.add('flex');
+            });
+            imageContainer.addEventListener('mouseleave', () => {
+                descOverlay.classList.add('hidden');
+                descOverlay.classList.remove('flex');
+            });
+            
+            // Click to copy (but not on the image container to allow dragging)
+            card.addEventListener('click', (e) => {
+                // Don't copy if clicking on image container (for drag-drop)
+                if (e.target === imageContainer || imageContainer.contains(e.target)) {
+                    return;
+                }
+                copyPrompt(prompt);
+            });
+            
+            return card;
+        }
+        
         function copyPrompt(prompt) {
             const fullPrompt = `${prompt.tag}: ${prompt.description}`;
             navigator.clipboard.writeText(fullPrompt).then(() => {
@@ -477,26 +737,24 @@ function createPromptCard(prompt, category) {
                 }, 1500);
             });
         }
-
+        
         function openEditModal(prompt, category) {
             currentEditPrompt = prompt;
             currentEditCategory = category;
             editText.value = `${prompt.tag}\n${prompt.description}`;
             editModal.classList.remove('hidden');
         }
-
+        
         function saveEditedPrompt() {
             const lines = editText.value.split('\n');
             const tag = lines[0];
             const description = lines.slice(1).join('\n');
-
             currentEditPrompt.tag = tag;
             currentEditPrompt.description = description;
-
             editModal.classList.add('hidden');
             renderPrompts();
         }
-
+        
         function deletePrompt(prompt, category) {
             const list = prompts.pages[currentPage][category];
             const index = list.indexOf(prompt);
@@ -507,20 +765,31 @@ function createPromptCard(prompt, category) {
                 }
             }
         }
-
+        
         function deleteCategory(categoryName) {
             if (confirm(`Delete category "${categoryName}" and all its prompts?`)) {
                 delete prompts.pages[currentPage][categoryName];
                 showPage(currentPage);
             }
         }
-
+        
+        function movePrompt(prompt, category, direction) {
+            const list = prompts.pages[currentPage][category];
+            const index = list.indexOf(prompt);
+            if (index === -1) return;
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= list.length) return;
+            // Swap elements
+            [list[index], list[newIndex]] = [list[newIndex], list[index]];
+            renderPrompts();
+        }
+        
         function setupEventListeners() {
             saveEdit.addEventListener('click', saveEditedPrompt);
             cancelEdit.addEventListener('click', () => {
                 editModal.classList.add('hidden');
             });
-
+            
             // Add page
             document.getElementById("add-page-btn").addEventListener("click", async () => {
                 const name = prompt("Page name:");
@@ -540,7 +809,7 @@ function createPromptCard(prompt, category) {
                     alert(`Error creating page: ${err.message}`);
                 }
             });
-
+            
             // Save current page to its JSON file
             document.getElementById("save-page-btn").addEventListener("click", async () => {
                 if (!currentPage || !prompts.pages[currentPage]) {
@@ -555,13 +824,13 @@ function createPromptCard(prompt, category) {
                     alert(`Error saving page: ${err.message}`);
                 }
             });
-
+            
             // Add category
             document.getElementById("add-category-btn").addEventListener("click", () => {
                 categoryNameInput.value = "";
                 categoryModal.classList.remove('hidden');
             });
-
+            
             saveCategoryBtn.addEventListener('click', () => {
                 const name = categoryNameInput.value.trim();
                 if (!name) return;
@@ -573,18 +842,19 @@ function createPromptCard(prompt, category) {
                 categoryModal.classList.add('hidden');
                 showPage(currentPage);
             });
-
+            
             cancelCategoryBtn.addEventListener('click', () => {
                 categoryModal.classList.add('hidden');
             });
-
+            
             // Delegate events for dynamically created buttons
             document.addEventListener("click", e => {
                 if (e.target.classList.contains("add-prompt-btn")) {
                     const category = e.target.dataset.category;
                     prompts.pages[currentPage][category].push({
                         tag: "New Prompt",
-                        description: "Description..."
+                        description: "Description...",
+                        image: null // ensure image property exists
                     });
                     renderPrompts();
                 }
@@ -594,7 +864,7 @@ function createPromptCard(prompt, category) {
                     deleteCategory(category);
                 }
             });
-
+            
             // Search - searches across all pages
             searchInput.addEventListener('input', () => {
                 const searchTerm = searchInput.value.toLowerCase().trim();
@@ -610,6 +880,9 @@ function createPromptCard(prompt, category) {
                 let totalMatches = 0;
                 
                 Object.entries(prompts.pages).forEach(([pageName, pageData]) => {
+                    // Skip Metadata Viewer from search
+                    if (pageName === "Metadata Viewer") return;
+                    
                     Object.entries(pageData).forEach(([categoryName, promptList]) => {
                         const matchingPrompts = promptList.filter(prompt => 
                             prompt.tag.toLowerCase().includes(searchTerm) ||
@@ -662,58 +935,33 @@ function createPromptCard(prompt, category) {
                     container.appendChild(pageSection);
                 });
             });
-
+            
             // Dark mode
             darkModeToggle.addEventListener('click', () => {
                 document.documentElement.classList.toggle('dark');
                 darkModeToggle.textContent = document.documentElement.classList.contains('dark') ? '☀️ Light' : '🌙 Dark';
             });
+            
+            // Export JSON
+            document.getElementById('export-json-btn').addEventListener('click', () => {
+                // Get only the current active page data
+                if (!currentPage || !prompts.pages[currentPage]) {
+                    alert('No active page to export');
+                    return;
+                }
+                
+                const currentPageData = prompts.pages[currentPage];
+                const jsonData = JSON.stringify(currentPageData, null, 2);
+                // Trigger download with page name
+                const blob = new Blob([jsonData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${currentPage}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
         }
     </script>
-    <!-- ... all your existing HTML content ... -->
-
-<!-- Export JSON Button -->
-<div class="text-center my-8">
-    <button id="export-json-btn" class="px-6 py-3 text-base bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-md hover:shadow-lg">Export JSON</button>
-</div>
-
-<script>
-document.getElementById('export-json-btn').addEventListener('click', () => {
-    // Get only the current active page data
-    if (!currentPage || !prompts.pages[currentPage]) {
-        alert('No active page to export');
-        return;
-    }
-    
-    const currentPageData = prompts.pages[currentPage];
-    const jsonData = JSON.stringify(currentPageData, null, 2);
-
-    // Trigger download with page name
-    const blob = new Blob([jsonData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${currentPage}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-});
-</script>
-
-<script>
-function movePrompt(prompt, category, direction) {
-    const list = prompts.pages[currentPage][category];
-    const index = list.indexOf(prompt);
-    if (index === -1) return;
-
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= list.length) return;
-
-    // Swap elements
-    [list[index], list[newIndex]] = [list[newIndex], list[index]];
-
-    renderPrompts();
-}
-</script>
-
-
-</body></html>
+</body>
+</html>
