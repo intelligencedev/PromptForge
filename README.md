@@ -16,6 +16,14 @@ A visual prompt management system for AI image generation. Organize, browse, and
 ![Camera View](assets/camera_view.png)
 *Specialized camera angle and shot prompts for precise composition control*
 
+### Lights Effects Collection
+![Lights View](assets/lights_view.png)
+*Different prompts for lights control*
+
+### Themes Library
+![Themes View](assets/themes_view.png)
+*Most used themes prompts for enviroment composition *
+
 ### Materials Library
 ![Materials View](assets/materials_view.png)
 *Collection of material and texture prompts for realistic rendering*
@@ -114,7 +122,9 @@ img-prompt/
 ├── requirements.txt   # Python dependencies
 ├── start.sh          # Startup script (Mac/Linux)
 ├── start.bat         # Startup script (Windows)
-├── Main Page.json    # Default prompts collection
+├── STYLES.json       # Styles-related prompts
+├── LIGHTS.json       # Lights-related prompts
+├── THEMES.json       # Themes-related prompts
 ├── CAMERA.json       # Camera-related prompts
 ├── MATERIALS.json    # Material-related prompts
 └── images/           # Prompt preview images
