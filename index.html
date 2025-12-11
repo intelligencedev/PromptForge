@@ -716,10 +716,14 @@ TYPE: ${file.type}`;
                 descOverlay.classList.remove('flex');
             });
             
-            // Click to copy (but not on the image container to allow dragging)
+            // Click to copy (improved logic)
             card.addEventListener('click', (e) => {
-                // Don't copy if clicking on image container (for drag-drop)
-                if (e.target === imageContainer || imageContainer.contains(e.target)) {
+                // Don't copy if clicking on buttons or input elements
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
+                    return;
+                }
+                // Don't copy if clicking inside edit buttons container
+                if (e.target.closest('.edit-buttons')) {
                     return;
                 }
                 copyPrompt(prompt);
